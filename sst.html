@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seven Stand — Forest Intelligence Platform</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.5.0/Recharts.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',system-ui,-apple-system,sans-serif;color:#3A4A40;background:#fff}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#DDE3D8;border-radius:3px}
+input,textarea,select,button{font-family:inherit}
+a{text-decoration:none}
+@keyframes ss-pulse{0%,100%{opacity:.25}50%{opacity:1}}
+@keyframes ss-fade{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+@keyframes ss-slide{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
+.ss-fade{animation:ss-fade .35s ease both}
+.ss-slide{animation:ss-slide .22s ease both}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+(function(){
+const {useState,useEffect,useRef}=React;
+const {AreaChart,Area,LineChart,Line,XAxis,YAxis,CartesianGrid,Tooltip,ResponsiveContainer}=Recharts;
+const e=React.createElement;
+
+const C={ink:'#0C1A0F',grove:'#1B4332',canopy:'#2D6A4F',moss:'#52B788',sage:'#B7E4C7',amber:'#C9991A',paper:'#F0F3EE',mist:'#DDE3D8',slate:'#3A4A40',fog:'#78907F',white:'#FFFFFF',danger:'#B91C1C',dangerBg:'#FEE2E2',warn:'#D97706',warnBg:'#FEF3C7',success:'#059669',successBg:'#D1FAE5',cloud:'#FAFBF9'};
+const serif={fontFamily:'"DM Serif Display",Georgia,serif'};
+const mono={fontFamily:'"JetBrains Mono","Courier New",monospace'};
+
+const rC=r=>r<25?C.success:r<60?C.warn:C.danger;
+const rBg=r=>r<25?C.successBg:r<60?C.warnBg:C.dangerBg;
+const sC=s=>['verified','compliant'].includes(s)?C.success:['watch','at-risk'].includes(s)?C.warn:C.danger;
+const sBg=s=>['verified','compliant'].includes(s)?C.successBg:['watch','at-risk'].includes(s)?C.warnBg:C.dangerBg;
+const sL=s=>({verified:'✓ Verified',watch:'⚠ Watch',alert:'✕ Alert',compliant:'✓ Compliant','at-risk':'⚠ At risk','non-compliant':'✕ Non-compliant'})[s]||s;
+
+const chartData=[{m:'Jan',v:97.2},{m:'Feb',v:97.0},{m:'Mar',v:96.8},{m:'Apr',v:96.5},{m:'May',v:96.7},{m:'Jun',v:96.3},{m:'Jul',v:95.9},{m:'Aug',v:96.1},{m:'Sep',v:95.6},{m:'Oct',v:95.2},{m:'Nov',v:95.5},{m:'Dec',v:95.3}];
+const credits=[{id:'MDD-001',name:'Madre de Dios REDD+',country:'Peru',ha:145000,cred:82400,risk:12,status:'verified',trend:[14,13,11,12,13,12]},{id:'BRN-002',name:'Borneo Conservation',country:'Indonesia',ha:89000,cred:51200,risk:34,status:'watch',trend:[22,25,28,31,33,34]},{id:'CON-001',name:'Congo Basin Reserve',country:'DRC',ha:203000,cred:114000,risk:8,status:'verified',trend:[9,8,8,9,8,8]},{id:'ATL-003',name:'Atlantic Forest Resto.',country:'Brazil',ha:42000,cred:28600,risk:67,status:'alert',trend:[38,44,51,58,63,67]},{id:'CER-007',name:'Cerrado Mosaic',country:'Brazil',ha:78000,cred:41000,risk:81,status:'alert',trend:[45,54,62,70,76,81]},{id:'MEK-004',name:'Mekong Uplands',country:'Laos',ha:61000,cred:33800,risk:22,status:'verified',trend:[24,23,22,23,22,22]}];
+const alertsList=[{id:1,type:'critical',msg:'Deforestation detected: 847ha in Cerrado Mosaic parcel 7',time:'2h ago',parcel:'CERR-07'},{id:2,type:'warning',msg:'Atlantic Forest: biomass 12% below quarterly baseline',time:'6h ago',parcel:'ATLA-03'},{id:3,type:'warning',msg:'3 supplier parcels need updated GPS for EUDR filing',time:'1d ago',parcel:'BR-EUDR'},{id:4,type:'info',msg:'Madre de Dios Q4 verification complete. All parcels nominal.',time:'2d ago',parcel:'MDD-01'},{id:5,type:'info',msg:'Congo Basin monthly signed report generated and sealed.',time:'3d ago',parcel:'CON-01'},{id:6,type:'info',msg:'New Sentinel-2 imagery processed for all monitored parcels.',time:'4d ago',parcel:'ALL'}];
+const suppliers=[{id:'S001',name:'Madeira Trading SA',country:'Brazil',commodity:'Sawn timber',ha:24000,status:'compliant',last:'5d ago',dds:'Filed'},{id:'S002',name:'Acácia Pulp Group',country:'Brazil',commodity:'Wood pulp',ha:67000,status:'at-risk',last:'12d ago',dds:'Pending'},{id:'S003',name:'PT Borneo Timber',country:'Indonesia',commodity:'Plywood',ha:31000,status:'compliant',last:'3d ago',dds:'Filed'},{id:'S004',name:'Congo Wood Ltd',country:'DRC',commodity:'Tropical logs',ha:89000,status:'non-compliant',last:'24d ago',dds:'Blocked'},{id:'S005',name:'Viet Forestry Co.',country:'Vietnam',commodity:'FSC timber',ha:18000,status:'compliant',last:'1d ago',dds:'Filed'},{id:'S006',name:'Amazon Nut Corp',country:'Peru',commodity:'Brazil nuts',ha:42000,status:'compliant',last:'7d ago',dds:'Filed'},{id:'S007',name:'Mekong Resources',country:'Laos',commodity:'Sawn timber',ha:28000,status:'at-risk',last:'15d ago',dds:'Pending'},{id:'S008',name:'Cerrado Agro',country:'Brazil',commodity:'Soy',ha:55000,status:'non-compliant',last:'31d ago',dds:'Blocked'}];
+const rptTypes=[{id:'eudr',icon:'📋',label:'EUDR Due Diligence Statement',desc:'Pre-filled DDS for EU TRACES submission covering all EUDR-regulated commodities.'},{id:'carbon',icon:'🌿',label:'Carbon Credit Verification',desc:'Independently verifiable report with full satellite evidence pack for auditors.'},{id:'risk',icon:'🛰',label:'Deforestation Risk Assessment',desc:'Comprehensive supplier-level risk scores across your entire supply chain.'},{id:'annual',icon:'📊',label:'Annual Forest Monitoring',desc:'Full-year summary formatted for ISSB, TNFD, GRI, and CDP disclosure.'}];
+const testimonials=[{q:'"Seven Stand cut our EUDR compliance review from 6 weeks to 4 hours. We filed DDS statements before most competitors had finished reading the regulation."',name:'Sophie R.',role:'Head of Sustainability',co:'Timber Import Group, Amsterdam'},{q:'"We bought $12M in carbon offsets before realising 40% failed basic satellite verification. Seven Stand now checks every project before we commit a single euro."',name:'Marcus W.',role:'Chief Investment Officer',co:'Climate Capital Partners, London'},{q:'"Our Verra auditors now accept Seven Stand reports as supplementary evidence. It saved us three on-site visits in the last year alone."',name:'Dr. Aiko T.',role:'MRV Programme Lead',co:'Pacific Forest Trust, Tokyo'}];
+const faqs=[{q:'What satellite data does Seven Stand use?',a:'We use ESA Sentinel-2 (10m resolution, free archive) as the primary source, supplemented by Planet Labs PlanetScope (3m) for high-risk parcels. Our change detection archive extends back to 2015, giving full coverage of the EUDR December 2020 reference date.'},{q:'Is Seven Stand recognised by Verra or Gold Standard?',a:'We have submitted our MRV methodology to Verra for review. Several project developers use our reports as supplementary evidence. Recognition is expected in Q3 2026.'},{q:'How do you define the Dec 31 2020 EUDR cutoff?',a:'We run a change detection algorithm on all imagery from December 31 2020 onward. Any confirmed canopy loss above 0.5 hectares triggers a flag. The exact imagery date and sensor name appear in every report.'},{q:'Can I integrate Seven Stand into SAP or Oracle?',a:'Yes. Our REST API returns structured JSON with risk scores, deforestation flags, and EUDR compliance verdicts. Pre-built connectors exist for SAP GTS, Oracle SCM Cloud, and Salesforce Sustainability Cloud.'},{q:'What if a parcel is flagged incorrectly?',a:'Raise a dispute directly from the platform. Our scientific team reviews within 5 business days using additional satellite data and, where necessary, coordinated field verification — at no extra charge.'}];
+const parcelsGeo=[{name:'Madre de Dios REDD+',x:152,y:162,risk:12,status:'verified',country:'Peru'},{name:'Atlantic Forest Resto.',x:208,y:177,risk:67,status:'alert',country:'Brazil'},{name:'Cerrado Mosaic',x:192,y:167,risk:81,status:'alert',country:'Brazil'},{name:'Congo Basin Reserve',x:314,y:142,risk:8,status:'verified',country:'DRC'},{name:'Borneo Conservation',x:454,y:141,risk:34,status:'watch',country:'Indonesia'},{name:'Mekong Uplands',x:440,y:114,risk:22,status:'verified',country:'Laos'}];
+const chatKB=[{k:['eudr','regulation','deadline','compliance','import'],r:'The EU Deforestation Regulation (EUDR) requires all companies importing cattle, cocoa, coffee, palm oil, soya, wood, and rubber into the EU to prove their products are deforestation-free after Dec 31 2020. The compliance deadline is December 30 2026 for large operators. Non-compliance carries fines up to 4% of annual EU turnover.'},{k:['carbon','credit','offset','redd','verra'],r:'Forest carbon credits represent one tonne of CO₂ prevented from entering the atmosphere. Quality issues are widespread — a 2023 Guardian investigation found ~75% of REDD+ credits from major certifiers were "phantom credits." Seven Stand provides continuous satellite verification to confirm credits are genuine.'},{k:['sentinel','satellite','imagery','monitoring','planet'],r:'We primarily use ESA Sentinel-2 satellite imagery (free global coverage at 10m resolution, 5-day revisit) supplemented by Planet Labs PlanetScope at 3m resolution for high-risk parcels. Our AI model detects canopy loss events down to 0.5 hectares.'},{k:['certificate','verify','proof','dds','document'],r:'Seven Stand generates two document types: (1) Verification Certificates for carbon credit projects showing forest cover, biomass, and risk scores with a cryptographic hash; and (2) EUDR Due Diligence Statements pre-filled for EU TRACES submission. Both update continuously.'},{k:['price','cost','plan','subscription','pricing'],r:'Seven Stand offers three plans: Starter (free, 10 checks/month), Professional ($299/month, unlimited checks + carbon dashboard + API access), and Enterprise (custom pricing with IoT sensors, MRV methodology package, and a dedicated account manager).'},{k:['illegal','logging','deforestation','chainsaw','forest'],r:'Illegal logging causes $30-100 billion in losses annually. Seven Stand detects deforestation using satellite change detection (within 48 hours of imagery) and acoustic IoT sensors that identify chainsaw noise in real time and log events to a tamper-proof ledger.'},{k:['api','integrate','sap','oracle','technical','developer'],r:'Our REST API accepts GPS polygon coordinates and returns a JSON response with risk score (0-100), binary EUDR compliance flag, and a pre-filled due diligence statement. Authentication uses Bearer tokens. Pre-built connectors exist for SAP GTS, Oracle SCM, and Salesforce.'}];
+
+const Box=({children,style={}})=>e('div',{style:{backgroundColor:C.white,border:`0.5px solid ${C.mist}`,borderRadius:8,...style}},children);
+const Pill=({text})=>e('span',{style:{display:'inline-block',fontSize:10,fontWeight:500,padding:'3px 10px',borderRadius:12,backgroundColor:'rgba(82,183,136,.18)',color:C.moss,letterSpacing:'.07em',textTransform:'uppercase'}},text);
+const SH=({label,title,center})=>e('div',{style:{textAlign:center?'center':'left',marginBottom:38}},e(Pill,{text:label}),e('h2',{style:{...serif,fontSize:32,fontWeight:400,color:C.ink,margin:'10px 0 0',letterSpacing:'-.5px'}},title));
+
+function SatGrid({rows=13,cols=21}){
+  const n=rows*cols;
+  const [cells,setCells]=useState(()=>Array(n).fill(0).map(()=>({k:Math.random()<.79?'f':Math.random()<.5?'a':'c',o:.28+Math.random()*.72})));
+  useEffect(()=>{const t=setInterval(()=>setCells(p=>p.map(x=>({k:Math.random()<.007?(x.k==='f'?'a':x.k==='a'?'f':x.k):x.k,o:.22+Math.random()*.78}))),1900);return()=>clearInterval(t);},[]);
+  const bg=k=>k==='f'?C.canopy:k==='a'?C.amber:'#4A2008';
+  return e('div',{style:{display:'grid',gridTemplateColumns:`repeat(${cols},1fr)`,gap:'2px',borderRadius:6,overflow:'hidden'}},cells.map((c,i)=>e('div',{key:i,style:{aspectRatio:'1',backgroundColor:bg(c.k),opacity:c.o,transition:'opacity 1.9s ease,background-color .7s ease'}})));
+}
+
+function WorldMap(){
+  const [hov,setHov]=useState(null);
+  const dc=s=>s==='verified'?C.moss:s==='watch'?C.amber:C.danger;
+  const paths=['M 55 64 L 83 54 L 110 56 L 140 62 L 160 73 L 167 89 L 163 106 L 154 120 L 142 133 L 126 148 L 104 154 L 82 147 L 62 132 L 48 113 L 44 90 L 48 74 Z','M 102 156 L 146 146 L 176 154 L 196 168 L 212 186 L 214 212 L 202 236 L 172 246 L 138 240 L 115 224 L 100 202 L 98 180 Z','M 238 60 L 270 55 L 302 58 L 316 73 L 308 90 L 287 99 L 261 97 L 239 84 Z','M 236 97 L 304 96 L 328 107 L 336 130 L 332 158 L 320 192 L 296 228 L 264 240 L 236 228 L 220 200 L 215 166 L 222 126 Z','M 312 56 L 382 48 L 444 46 L 504 50 L 520 68 L 514 100 L 494 128 L 460 148 L 418 158 L 378 150 L 348 134 L 328 110 L 315 84 Z','M 424 186 L 468 180 L 500 186 L 508 208 L 496 228 L 466 238 L 430 230 L 416 212 Z'];
+  return e('div',{style:{position:'relative'}},
+    e('svg',{viewBox:'0 0 560 270',style:{width:'100%',display:'block',borderRadius:8}},
+      e('rect',{width:560,height:270,fill:'#0A1610'}),
+      e('g',{opacity:.07},...[0,1,2,3,4,5,6,7,8,9].map(i=>e('line',{key:'h'+i,x1:0,y1:i*30,x2:560,y2:i*30,stroke:C.moss,strokeWidth:.5})),...[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18].map(i=>e('line',{key:'v'+i,x1:i*31,y1:0,x2:i*31,y2:270,stroke:C.moss,strokeWidth:.5}))),
+      ...paths.map((d,i)=>e('path',{key:i,d,fill:C.canopy,opacity:.42})),
+      ...parcelsGeo.flatMap((p,i)=>[e('circle',{key:'o'+i,cx:p.x,cy:p.y,r:11,fill:dc(p.status),opacity:.15}),e('circle',{key:'d'+i,cx:p.x,cy:p.y,r:5,fill:dc(p.status),opacity:.9,style:{cursor:'pointer'},onMouseEnter:()=>setHov(p),onMouseLeave:()=>setHov(null)}),e('circle',{key:'c'+i,cx:p.x,cy:p.y,r:2.5,fill:'#fff',opacity:.8})]),
+      hov&&e('g',null,e('rect',{x:Math.min(hov.x+14,418),y:hov.y-38,width:140,height:58,rx:7,fill:'#0C1A0F',opacity:.96}),e('text',{x:Math.min(hov.x+20,424),y:hov.y-16,fontSize:10,fill:C.white,fontWeight:'600'},hov.name),e('text',{x:Math.min(hov.x+20,424),y:hov.y-1,fontSize:9,fill:C.fog},hov.country+' · Risk: '+hov.risk+'/100'),e('text',{x:Math.min(hov.x+20,424),y:hov.y+14,fontSize:9,fill:dc(hov.status),fontWeight:'500'},sL(hov.status)))
+    ),
+    e('div',{style:{display:'flex',gap:14,padding:'8px 2px'}},[[C.moss,'Verified'],[C.amber,'Watch'],[C.danger,'Alert']].map(([cl,lb])=>e('div',{key:lb,style:{display:'flex',alignItems:'center',gap:5}},e('div',{style:{width:8,height:8,borderRadius:'50%',backgroundColor:cl}}),e('span',{style:{fontSize:11,color:C.fog}},lb))))
+  );
+}
+
+function TabOverview(){
+  return e('div',{className:'ss-fade'},
+    e('div',{style:{marginBottom:18}},e('h1',{style:{fontSize:20,fontWeight:600,margin:0}},'Portfolio overview'),e('p',{style:{fontSize:13,color:C.fog,marginTop:3}},'Live monitoring across all active forest parcels')),
+    e('div',{style:{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:14}},
+      [{l:'Parcels monitored',v:'14',s:'active'},{l:'EUDR compliance',v:'81%',s:'of suppliers'},{l:'Active alerts',v:'2',s:'require action',w:true},{l:'Credits verified',v:'312K t',s:'CO₂ this year'}].map(m=>e(Box,{key:m.l,style:{padding:'14px 16px'}},e('div',{style:{fontSize:10,color:C.fog,marginBottom:5,letterSpacing:'.06em',textTransform:'uppercase'}},m.l),e('div',{style:{fontSize:24,fontWeight:600,color:m.w?C.danger:C.slate}},m.v),e('div',{style:{fontSize:12,color:C.fog,marginTop:2}},m.s)))
+    ),
+    e(Box,{style:{padding:'16px 20px',marginBottom:12}},
+      e('div',{style:{fontSize:13,fontWeight:500,marginBottom:12}},'Forest cover — 12 months (%)'),
+      e(ResponsiveContainer,{width:'100%',height:140},e(AreaChart,{data:chartData,margin:{top:0,right:0,left:-22,bottom:0}},e('defs',null,e('linearGradient',{id:'cg',x1:'0',y1:'0',x2:'0',y2:'1'},e('stop',{offset:'5%',stopColor:C.canopy,stopOpacity:.18}),e('stop',{offset:'95%',stopColor:C.canopy,stopOpacity:0}))),e(CartesianGrid,{strokeDasharray:'3 3',stroke:C.mist,vertical:false}),e(XAxis,{dataKey:'m',tick:{fontSize:11,fill:C.fog},axisLine:false,tickLine:false}),e(YAxis,{domain:[94,98],tick:{fontSize:11,fill:C.fog},axisLine:false,tickLine:false}),e(Tooltip,{contentStyle:{fontSize:12,border:`1px solid ${C.mist}`,borderRadius:7,boxShadow:'none'}}),e(Area,{type:'monotone',dataKey:'v',name:'Cover %',stroke:C.canopy,strokeWidth:1.5,fill:'url(#cg)'})))
+    ),
+    e(Box,{style:{padding:'16px 20px'}},e('div',{style:{fontSize:13,fontWeight:500,marginBottom:12}},'Recent alerts'),alertsList.slice(0,4).map(a=>e('div',{key:a.id,style:{padding:'9px 12px',borderRadius:7,marginBottom:7,backgroundColor:a.type==='critical'?C.dangerBg:a.type==='warning'?C.warnBg:C.paper,borderLeft:`3px solid ${a.type==='critical'?C.danger:a.type==='warning'?C.warn:C.moss}`}},e('div',{style:{fontSize:13,fontWeight:500}},a.msg),e('div',{style:{fontSize:11,color:C.fog,marginTop:2}},a.parcel+' · '+a.time))))
+  );
+}
+
+function TabEUDR(){
+  const [coords,setCoords]=useState('');
+  const [checking,setChecking]=useState(false);
+  const [result,setResult]=useState(null);
+  const [ref,setRef]=useState('');
+  const run=()=>{if(!coords.trim())return;setChecking(true);setResult(null);setTimeout(()=>{const r=Math.floor(Math.random()*100);setResult({risk:r,area:(2400+Math.floor(Math.random()*1800)).toLocaleString(),change:r<25?'−0.3%':r<60?'−1.8%':'−5.2%',verdict:r<25?'No deforestation detected after Dec 31 2020. Parcel is EUDR-compliant. Safe to proceed with DDS filing in EU TRACES.':r<60?'Minor canopy reduction detected. Legal review recommended before submitting your due diligence statement.':'Significant deforestation confirmed after the cutoff date. EUDR non-compliant — halt shipment and notify your compliance team immediately.'});setChecking(false);setRef('SS-'+Date.now().toString(36).toUpperCase().slice(-6));},2900);};
+  return e('div',{className:'ss-fade'},
+    e('div',{style:{marginBottom:18}},e('h1',{style:{fontSize:20,fontWeight:600,margin:0}},'EUDR compliance checker'),e('p',{style:{fontSize:13,color:C.fog,marginTop:3}},'Verify a forest parcel against the Dec 31 2020 deforestation cutoff')),
+    e('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}},
+      e(Box,{style:{padding:'20px'}},e('div',{style:{fontSize:13,fontWeight:500,marginBottom:12}},'Parcel GPS coordinates'),e('textarea',{value:coords,onChange:ev=>setCoords(ev.target.value),placeholder:'-3.1234, -60.5678\n-3.1234, -60.5200\n-3.0900, -60.5200\n-3.0900, -60.5678',style:{width:'100%',height:120,padding:'9px 11px',border:`0.5px solid ${C.mist}`,borderRadius:7,fontSize:12,...mono,color:C.slate,backgroundColor:C.paper,resize:'none',outline:'none',boxSizing:'border-box'}}),e('button',{onClick:()=>setCoords('-3.1234, -60.5678\n-3.1234, -60.5200\n-3.0900, -60.5200\n-3.0900, -60.5678'),style:{fontSize:11,color:C.fog,background:'none',border:'none',padding:'4px 0',cursor:'pointer'}},'Use sample coordinates ↗'),e('button',{onClick:run,disabled:checking||!coords.trim(),style:{display:'block',width:'100%',marginTop:12,padding:'10px',backgroundColor:!coords.trim()||checking?C.mist:C.grove,color:!coords.trim()||checking?C.fog:C.white,border:'none',borderRadius:7,fontSize:13,fontWeight:500,cursor:!coords.trim()||checking?'not-allowed':'pointer'}},checking?'Querying satellite data…':'Check parcel')),
+      e(Box,{style:{padding:'20px',minHeight:220}},e('div',{style:{fontSize:13,fontWeight:500,marginBottom:12}},'Verification result'),!result&&!checking&&e('div',{style:{color:C.fog,fontSize:13,textAlign:'center',paddingTop:44}},e('div',{style:{fontSize:36,opacity:.2,marginBottom:10}},'⬚'),'Enter coordinates to run a check'),checking&&e('div',null,['Querying Sentinel-2 imagery stack…','Running deforestation detection model…','Cross-referencing Dec 2020 baseline…'].map((s,i)=>e('div',{key:i,style:{display:'flex',alignItems:'center',gap:10,padding:'9px 0',borderBottom:`0.5px solid ${C.mist}`}},e('div',{style:{width:7,height:7,borderRadius:'50%',backgroundColor:C.moss,animation:`ss-pulse 1s ease ${i*.3}s infinite`}}),e('span',{style:{fontSize:13}},s)))),result&&e('div',{className:'ss-fade'},e('div',{style:{display:'flex',alignItems:'center',gap:14,padding:'14px',backgroundColor:rBg(result.risk),borderRadius:7,marginBottom:12}},e('div',{style:{...serif,fontSize:38,color:rC(result.risk)}},result.risk),e('div',null,e('div',{style:{fontSize:13,fontWeight:500,color:rC(result.risk)}},'Risk score'),e('div',{style:{fontSize:11,color:C.fog}},'0 = no risk · 100 = critical'))),e('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:12}},[{l:'Parcel area',v:result.area+' ha'},{l:'Forest change',v:result.change},{l:'Cutoff date',v:'Dec 31 2020'},{l:'Reference',v:ref,m:true}].map(r=>e('div',{key:r.l,style:{backgroundColor:C.paper,borderRadius:6,padding:'9px 11px'}},e('div',{style:{fontSize:10,color:C.fog,marginBottom:3}},r.l),e('div',{style:{fontSize:12,fontWeight:500,...(r.m?mono:{})}},r.v)))),e('div',{style:{padding:'11px 13px',backgroundColor:rBg(result.risk),borderRadius:7,borderLeft:`3px solid ${rC(result.risk)}`}},e('div',{style:{fontSize:11,fontWeight:500,color:rC(result.risk),marginBottom:3}},'Verdict'),e('div',{style:{fontSize:12,lineHeight:1.6}},result.verdict))))
+    )
+  );
+}
+
+function TabCarbon(){
+  const [sel,setSel]=useState(null);
+  const months=['Jan','Feb','Mar','Apr','May','Jun'];
+  return e('div',{className:'ss-fade'},
+    e('div',{style:{marginBottom:18}},e('h1',{style:{fontSize:20,fontWeight:600,margin:0}},'Carbon portfolio'),e('p',{style:{fontSize:13,color:C.fog,marginTop:3}},'Live integrity scores — click a row to view 6-month risk trend')),
+    e(Box,{style:{overflow:'hidden',marginBottom:sel?12:0}},
+      e('div',{style:{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr 1.5fr 1fr',padding:'9px 18px',backgroundColor:C.paper,borderBottom:`0.5px solid ${C.mist}`,gap:10}},['Project','Country','Hectares','Credits','Risk','Status'].map(h=>e('div',{key:h,style:{fontSize:10,color:C.fog,fontWeight:500,letterSpacing:'.06em',textTransform:'uppercase'}},h))),
+      credits.map((c,i)=>e('div',{key:i,onClick:()=>setSel(sel?.id===c.id?null:c),style:{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr 1.5fr 1fr',padding:'11px 18px',borderBottom:i<credits.length-1?`0.5px solid ${C.mist}`:'none',gap:10,alignItems:'center',cursor:'pointer',backgroundColor:sel?.id===c.id?C.paper:'transparent',transition:'background-color .15s'}},e('div',{style:{fontSize:13,fontWeight:500}},c.name),e('div',{style:{fontSize:12,color:C.fog}},c.country),e('div',{style:{fontSize:12,...mono}},c.ha.toLocaleString()),e('div',{style:{fontSize:12,...mono}},c.cred.toLocaleString()),e('div',{style:{display:'flex',alignItems:'center',gap:6}},e('div',{style:{flex:1,height:4,backgroundColor:C.mist,borderRadius:2}},e('div',{style:{width:c.risk+'%',height:'100%',backgroundColor:rC(c.risk),borderRadius:2}})),e('span',{style:{fontSize:11,...mono,color:rC(c.risk),fontWeight:500,minWidth:22,textAlign:'right'}},c.risk)),e('span',{style:{fontSize:11,padding:'2px 8px',borderRadius:10,fontWeight:500,backgroundColor:sBg(c.status),color:sC(c.status)}},sL(c.status))))
+    ),
+    sel&&e(Box,{style:{padding:'18px 20px'}},e('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}},e('div',null,e('div',{style:{fontSize:13,fontWeight:500}},sel.name+' — 6-month risk trend'),e('div',{style:{fontSize:12,color:C.fog}},sel.country+' · '+sel.ha.toLocaleString()+' ha')),e('button',{onClick:()=>setSel(null),style:{background:'none',border:'none',cursor:'pointer',fontSize:20,color:C.fog}},'×')),e(ResponsiveContainer,{width:'100%',height:110},e(LineChart,{data:months.map((m,i)=>({m,r:sel.trend[i]})),margin:{top:0,right:0,left:-22,bottom:0}},e(CartesianGrid,{strokeDasharray:'3 3',stroke:C.mist,vertical:false}),e(XAxis,{dataKey:'m',tick:{fontSize:11,fill:C.fog},axisLine:false,tickLine:false}),e(YAxis,{tick:{fontSize:11,fill:C.fog},axisLine:false,tickLine:false}),e(Tooltip,{contentStyle:{fontSize:12,border:`1px solid ${C.mist}`,borderRadius:7,boxShadow:'none'}}),e(Line,{type:'monotone',dataKey:'r',name:'Risk score',stroke:rC(sel.risk),strokeWidth:2,dot:{r:3,fill:rC(sel.risk)}}))))
+  );
+}
+
+function TabAlerts(){
+  return e('div',{className:'ss-fade'},e('div',{style:{marginBottom:18}},e('h1',{style:{fontSize:20,fontWeight:600,margin:0}},'Alert feed'),e('p',{style:{fontSize:13,color:C.fog,marginTop:3}},'All monitoring events across your forest portfolio')),alertsList.map(a=>e(Box,{key:a.id,style:{padding:'14px 18px',marginBottom:10,borderLeft:`4px solid ${a.type==='critical'?C.danger:a.type==='warning'?C.warn:C.moss}`}},e('div',{style:{display:'flex',justifyContent:'space-between',gap:12}},e('div',null,e('div',{style:{fontSize:13,fontWeight:500}},a.msg),e('div',{style:{fontSize:11,color:C.fog,marginTop:3}},a.parcel+' · '+a.time)),e('span',{style:{fontSize:11,padding:'2px 8px',borderRadius:10,flexShrink:0,fontWeight:500,backgroundColor:a.type==='critical'?C.dangerBg:a.type==='warning'?C.warnBg:C.successBg,color:a.type==='critical'?C.danger:a.type==='warning'?C.warn:C.success}},a.type)))));
+}
+
+function TabMap(){
+  return e('div',{className:'ss-fade'},e('div',{style:{marginBottom:18}},e('h1',{style:{fontSize:20,fontWeight:600,margin:0}},'Global forest map'),e('p',{style:{fontSize:13,color:C.fog,marginTop:3}},'All monitored parcels worldwide — hover a dot for details')),e(Box,{style:{padding:'18px',marginBottom:14}},e(WorldMap)),e('div',{style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10}},credits.map(c=>e(Box,{key:c.name,style:{padding:'11px 14px',display:'flex',alignItems:'center',gap:10}},e('div',{style:{width:9,height:9,borderRadius:'50%',flexShrink:0,backgroundColor:sC(c.status)}}),e('div',null,e('div',{style:{fontSize:13,fontWeight:500}},c.name),e('div',{style:{fontSize:11,color:C.fog}},c.country+' · '+c.ha.toLocaleString()+' ha · Risk: '+c.risk))))));
+}
+
+function TabSuppliers(){
+  const [filter,setFilter]=useState('all');
+  const [showForm,setShowForm]=useState(false);
+  const filtered=filter==='all'?suppliers:suppliers.filter(s=>s.status===filter);
+  const dC=s=>s==='Filed'?C.success:s==='Pending'?C.warn:C.danger;
+  const dBg=s=>s==='Filed'?C.successBg:s==='Pending'?C.warnBg:C.dangerBg;
+  return e('div',{className:'ss-fade'},
+    e('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-end',marginBottom:16}},e('div',null,e('h1',{style:{fontSize:20,fontWeight:600,margin:0}},'Supplier management'),e('p',{style:{fontSize:13,color:C.fog,marginTop:3}},'EUDR supply chain compliance across all active suppliers')),e('button',{onClick:()=>setShowForm(!showForm),style:{padding:'8px 16px',backgroundColor:showForm?C.mist:C.grove,color:showForm?C.fog:C.white,border:'none',borderRadius:7,fontSize:13,fontWeight:500,cursor:'pointer'}},showForm?'Cancel':'+ Add supplier')),
+    showForm&&e(Box,{style:{padding:'18px',marginBottom:12}},e('div',{style:{fontSize:13,fontWeight:500,marginBottom:14}},'New supplier'),e('div',{style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:14}},['Company name','Country','Commodity / product'].map(l=>e('div',{key:l},e('label',{style:{fontSize:11,color:C.fog,display:'block',marginBottom:4}},l),e('input',{placeholder:l,style:{width:'100%',padding:'8px 11px',border:`0.5px solid ${C.mist}`,borderRadius:7,fontSize:13,backgroundColor:C.paper,outline:'none',boxSizing:'border-box'}})))),e('div',{style:{display:'flex',gap:8}},e('button',{onClick:()=>setShowForm(false),style:{padding:'8px 18px',backgroundColor:C.amber,color:C.ink,border:'none',borderRadius:7,fontSize:13,fontWeight:500,cursor:'pointer'}},'Save supplier'),e('button',{onClick:()=>setShowForm(false),style:{padding:'8px 18px',border:`0.5px solid ${C.mist}`,borderRadius:7,fontSize:13,color:C.fog,cursor:'pointer',backgroundColor:'transparent'}},'Cancel'))),
+    e('div',{style:{display:'flex',gap:6,marginBottom:14}},[['all','All ('+suppliers.length+')'],['compliant','Compliant'],['at-risk','At risk'],['non-compliant','Non-compliant']].map(([v,l])=>e('button',{key:v,onClick:()=>setFilter(v),style:{padding:'5px 12px',backgroundColor:filter===v?C.grove:'transparent',color:filter===v?C.white:C.fog,border:`0.5px solid ${filter===v?C.grove:C.mist}`,borderRadius:16,fontSize:12,cursor:'pointer'}},l))),
+    e(Box,{style:{overflow:'hidden'}},
+      e('div',{style:{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr 1fr 1fr 1fr',padding:'8px 16px',backgroundColor:C.paper,borderBottom:`0.5px solid ${C.mist}`,gap:8}},['Supplier','Country','Commodity','Hectares','Last check','DDS','EUDR'].map(h=>e('div',{key:h,style:{fontSize:10,color:C.fog,fontWeight:500,letterSpacing:'.06em',textTransform:'uppercase'}},h))),
+      filtered.map((s,i)=>e('div',{key:s.id,style:{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr 1fr 1fr 1fr',padding:'11px 16px',borderBottom:i<filtered.length-1?`0.5px solid ${C.mist}`:'none',gap:8,alignItems:'center'}},e('div',null,e('div',{style:{fontSize:13,fontWeight:500}},s.name),e('div',{style:{fontSize:10,color:C.fog,...mono}},s.id)),e('div',{style:{fontSize:12,color:C.fog}},s.country),e('div',{style:{fontSize:12}},s.commodity),e('div',{style:{fontSize:12,...mono}},s.ha.toLocaleString()),e('div',{style:{fontSize:12,color:C.fog}},s.last),e('span',{style:{fontSize:11,padding:'2px 7px',borderRadius:10,fontWeight:500,backgroundColor:dBg(s.dds),color:dC(s.dds)}},s.dds),e('span',{style:{fontSize:11,padding:'2px 7px',borderRadius:10,fontWeight:500,backgroundColor:sBg(s.status),color:sC(s.status)}},sL(s.status))))
+    )
+  );
+}
+
+function TabReports(){
+  const [type,setType]=useState(null);
+  const [gen,setGen]=useState(false);
+  const [done,setDone]=useState(false);
+  const [step,setStep]=useState('');
+  const generate=()=>{setGen(true);setDone(false);const steps=['Compiling satellite evidence pack…','Running verification algorithm…','Cross-referencing supply chain data…','Formatting compliance document…'];let i=0;setStep(steps[0]);const iv=setInterval(()=>{i++;if(i<steps.length)setStep(steps[i]);else{clearInterval(iv);setGen(false);setDone(true);}},800);};
+  return e('div',{className:'ss-fade'},
+    e('div',{style:{marginBottom:18}},e('h1',{style:{fontSize:20,fontWeight:600,margin:0}},'Report builder'),e('p',{style:{fontSize:13,color:C.fog,marginTop:3}},'Generate compliance and verification documents for regulators, auditors, and investors')),
+    e('div',{style:{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:10,marginBottom:16}},rptTypes.map(r=>e('div',{key:r.id,onClick:()=>{setType(r.id);setDone(false);},style:{backgroundColor:C.white,border:`1.5px solid ${type===r.id?C.canopy:C.mist}`,borderRadius:8,padding:'16px 18px',cursor:'pointer',transition:'border-color .15s'}},e('div',{style:{fontSize:22,marginBottom:9}},r.icon),e('div',{style:{fontSize:13,fontWeight:500,marginBottom:4,color:type===r.id?C.canopy:C.slate}},r.label),e('div',{style:{fontSize:12,color:C.fog,lineHeight:1.6}},r.desc)))),
+    type&&!done&&e(Box,{style:{padding:'18px',marginBottom:12}},e('div',{style:{fontSize:13,fontWeight:500,marginBottom:14}},'Report configuration'),e('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:16}},[{l:'Report period',ph:'Jan 2024 – Dec 2024'},{l:'Include parcels',ph:'All monitored parcels'},{l:'Output format',sel:true}].map(f=>e('div',{key:f.l},e('label',{style:{fontSize:11,color:C.fog,display:'block',marginBottom:5}},f.l),f.sel?e('select',{style:{width:'100%',padding:'8px 11px',border:`0.5px solid ${C.mist}`,borderRadius:7,fontSize:13,backgroundColor:C.paper,outline:'none',boxSizing:'border-box'}},e('option',null,'PDF (print-ready)'),e('option',null,'XLSX (data export)'),e('option',null,'JSON (API format)')):e('input',{placeholder:f.ph,style:{width:'100%',padding:'8px 11px',border:`0.5px solid ${C.mist}`,borderRadius:7,fontSize:13,backgroundColor:C.paper,outline:'none',boxSizing:'border-box'}})))),e('button',{onClick:generate,disabled:gen,style:{padding:'10px 22px',backgroundColor:gen?C.mist:C.grove,color:gen?C.fog:C.white,border:'none',borderRadius:7,fontSize:13,fontWeight:500,cursor:gen?'not-allowed':'pointer'}},gen?step:'Generate report')),
+    done&&e('div',{className:'ss-slide',style:{backgroundColor:C.successBg,border:`0.5px solid ${C.success}`,borderRadius:8,padding:'18px',display:'flex',justifyContent:'space-between',alignItems:'center'}},e('div',null,e('div',{style:{fontSize:14,fontWeight:500,color:C.success}},'Report generated successfully'),e('div',{style:{fontSize:12,color:C.slate,marginTop:3}},rptTypes.find(r=>r.id===type)?.label+' · '+new Date().toLocaleDateString('en-GB'))),e('div',{style:{display:'flex',gap:8}},e('button',{style:{padding:'8px 16px',backgroundColor:C.white,color:C.grove,border:`0.5px solid ${C.grove}`,borderRadius:7,fontSize:12,fontWeight:500,cursor:'pointer'}},'Preview'),e('button',{style:{padding:'8px 16px',backgroundColor:C.grove,color:C.white,border:'none',borderRadius:7,fontSize:12,fontWeight:500,cursor:'pointer'}},'↓ Download PDF')))
+  );
+}
+
+function TabCertificate(){
+  const [sel,setSel]=useState(credits[0]);
+  const certId='SS-CERT-2026-'+sel.id;
+  const hash='0x'+sel.id.replace('-','').toLowerCase()+'8f3a2b1c4d5e6f7a';
+  return e('div',{className:'ss-fade'},
+    e('div',{style:{marginBottom:18}},e('h1',{style:{fontSize:20,fontWeight:600,margin:0}},'Verification certificates'),e('p',{style:{fontSize:13,color:C.fog,marginTop:3}},'Tamper-proof, downloadable proof documents for each verified forest parcel')),
+    e('div',{style:{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap'}},credits.map(c=>e('button',{key:c.id,onClick:()=>setSel(c),style:{padding:'6px 14px',backgroundColor:sel.id===c.id?C.grove:C.white,color:sel.id===c.id?C.white:C.slate,border:`0.5px solid ${sel.id===c.id?C.grove:C.mist}`,borderRadius:20,fontSize:12,cursor:'pointer'}},c.name.split(' ').slice(0,2).join(' ')))),
+    e('div',{style:{backgroundColor:C.white,border:`1px solid ${C.mist}`,borderRadius:12,overflow:'hidden',maxWidth:700}},
+      e('div',{style:{backgroundColor:C.grove,padding:'20px 28px',display:'flex',justifyContent:'space-between',alignItems:'center'}},e('div',null,e('div',{style:{...serif,fontSize:20,color:C.white,letterSpacing:'-.5px'}},'Seven Stand'),e('div',{style:{fontSize:9,color:C.sage,marginTop:2,letterSpacing:'.1em',textTransform:'uppercase'}},'Forest Intelligence Platform')),e('div',{style:{textAlign:'right'}},e('div',{style:{fontSize:9,color:C.sage,letterSpacing:'.1em',textTransform:'uppercase',marginBottom:3}},'Certificate status'),e('span',{style:{backgroundColor:sel.status==='verified'?C.moss:sel.status==='watch'?C.amber:C.danger,color:C.white,fontSize:11,fontWeight:600,padding:'3px 12px',borderRadius:12}},sL(sel.status).toUpperCase()))),
+      e('div',{style:{padding:'16px 28px',borderBottom:`0.5px solid ${C.mist}`,backgroundColor:'#FCFDF9'}},e('div',{style:{fontSize:10,color:C.fog,letterSpacing:'.1em',textTransform:'uppercase',marginBottom:3}},'Document type'),e('div',{style:{...serif,fontSize:18,color:C.ink}},'Forest Verification Certificate'),e('div',{style:{fontSize:12,color:C.fog,marginTop:2}},'Issued: '+new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'}))),
+      e('div',{style:{padding:'16px 28px'}},
+        e('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:0,marginBottom:16}},[['Project name',sel.name],['Country',sel.country],['Parcel ID',sel.id],['Total area',sel.ha.toLocaleString()+' hectares'],['Credits issued',sel.cred.toLocaleString()+' tCO₂e'],['Issued date',new Date().toLocaleDateString('en-GB')]].map(([l,v])=>e('div',{key:l,style:{padding:'8px 0',borderBottom:`0.5px solid ${C.mist}`}},e('div',{style:{fontSize:10,color:C.fog,marginBottom:2,textTransform:'uppercase',letterSpacing:'.06em'}},l),e('div',{style:{fontSize:13,fontWeight:500}},v)))),
+        e('div',{style:{marginBottom:16,padding:'13px 15px',backgroundColor:C.successBg,borderRadius:8,borderLeft:`3px solid ${C.success}`}},e('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:7}},e('div',{style:{fontSize:12,fontWeight:500,color:C.success}},'Forest cover at verification'),e('div',{style:{...serif,fontSize:16,color:C.success}},'97.3%')),e('div',{style:{height:5,backgroundColor:'rgba(5,150,105,.2)',borderRadius:3}},e('div',{style:{width:'97.3%',height:'100%',backgroundColor:C.success,borderRadius:3}})),e('div',{style:{fontSize:11,color:C.success,marginTop:5}},'No deforestation detected after Dec 31 2020 · Risk score: '+sel.risk+'/100')),
+        e('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:16}},[['Satellite sources','Sentinel-2 + PlanetScope'],['Last imagery',new Date(Date.now()-172800000).toLocaleDateString('en-GB')],['Next verification',new Date(Date.now()+7776000000).toLocaleDateString('en-GB')],['Detection threshold','≥ 0.5 hectares']].map(([l,v])=>e('div',{key:l,style:{backgroundColor:C.paper,borderRadius:7,padding:'9px 11px'}},e('div',{style:{fontSize:10,color:C.fog,marginBottom:3,textTransform:'uppercase',letterSpacing:'.06em'}},l),e('div',{style:{fontSize:12,fontWeight:500}},v)))),
+        e('div',{style:{backgroundColor:C.ink,borderRadius:8,padding:'11px 14px',marginBottom:16}},e('div',{style:{fontSize:9,color:C.fog,marginBottom:5,letterSpacing:'.1em',textTransform:'uppercase'}},'Cryptographic verification'),e('div',{style:{fontSize:10,...mono,color:C.sage,lineHeight:1.9}},e('div',null,'Certificate ID: '+certId),e('div',null,'Blockchain ref: '+hash),e('div',null,'Algorithm: SHA-256 · Signed by Seven Stand CA'))),
+        e('div',{style:{display:'flex',gap:10}},e('button',{style:{flex:1,padding:'10px',backgroundColor:C.grove,color:C.white,border:'none',borderRadius:8,fontSize:13,fontWeight:500,cursor:'pointer'}},'↓ Download PDF certificate'),e('button',{style:{padding:'10px 16px',backgroundColor:'transparent',border:`0.5px solid ${C.mist}`,borderRadius:8,fontSize:13,cursor:'pointer',color:C.slate}},'Share link'))
+      )
+    )
+  );
+}
+
+function TabSettings(){
+  const [sec,setSec]=useState('account');
+  const [showKey,setShowKey]=useState(false);
+  const [ns,setNs]=useState({email:true,slack:false,weekly:true,critical:true,all:false});
+  const Tog=({k})=>e('div',{onClick:()=>setNs(p=>({...p,[k]:!p[k]})),style:{width:36,height:20,borderRadius:10,backgroundColor:ns[k]?C.canopy:C.mist,cursor:'pointer',position:'relative',transition:'background-color .2s',flexShrink:0}},e('div',{style:{width:16,height:16,borderRadius:'50%',backgroundColor:C.white,position:'absolute',top:2,left:ns[k]?18:2,transition:'left .2s'}}));
+  return e('div',{className:'ss-fade'},
+    e('div',{style:{marginBottom:18}},e('h1',{style:{fontSize:20,fontWeight:600,margin:0}},'Settings'),e('p',{style:{fontSize:13,color:C.fog,marginTop:3}},'Manage your account, notifications, and integrations')),
+    e('div',{style:{display:'flex',gap:16}},
+      e('div',{style:{width:155,flexShrink:0}},[['account','Account'],['notifications','Notifications'],['api','API keys'],['billing','Billing']].map(([id,lb])=>e('button',{key:id,onClick:()=>setSec(id),style:{display:'block',width:'100%',textAlign:'left',padding:'8px 12px',marginBottom:2,borderRadius:6,border:'none',cursor:'pointer',backgroundColor:sec===id?C.paper:C.white,color:sec===id?C.slate:C.fog,fontSize:13,fontWeight:sec===id?500:400,borderLeft:sec===id?`2px solid ${C.canopy}`:'2px solid transparent',transition:'all .15s'}},lb))),
+      e('div',{style:{flex:1}},
+        sec==='account'&&e(Box,{style:{padding:'20px'}},e('div',{style:{fontSize:13,fontWeight:500,marginBottom:16,paddingBottom:12,borderBottom:`0.5px solid ${C.mist}`}},'Account details'),e('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16}},[{l:'Full name',v:'Alex Patel'},{l:'Email',v:'alex@sevenstand.io'},{l:'Organisation',v:'Seven Stand Ltd'},{l:'Role',v:'Account owner'}].map(f=>e('div',{key:f.l},e('label',{style:{fontSize:11,color:C.fog,display:'block',marginBottom:4}},f.l),e('input',{defaultValue:f.v,style:{width:'100%',padding:'8px 11px',border:`0.5px solid ${C.mist}`,borderRadius:7,fontSize:13,backgroundColor:C.paper,outline:'none',boxSizing:'border-box'}})))),e('button',{style:{padding:'9px 20px',backgroundColor:C.grove,color:C.white,border:'none',borderRadius:7,fontSize:13,fontWeight:500,cursor:'pointer'}},'Save changes')),
+        sec==='notifications'&&e(Box,{style:{padding:'20px'}},e('div',{style:{fontSize:13,fontWeight:500,marginBottom:16,paddingBottom:12,borderBottom:`0.5px solid ${C.mist}`}},'Notification preferences'),[['email','Email alerts','Send alerts to your registered email address'],['slack','Slack integration','Post monitoring alerts to a connected Slack channel'],['critical','Critical alerts only','Notify only for confirmed deforestation events'],['weekly','Weekly digest','Summary of all portfolio activity each Monday'],['all','All alert levels','Include watch, info, and critical-level events']].map(([k,l,d])=>e('div',{key:k,style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'11px 0',borderBottom:`0.5px solid ${C.mist}`}},e('div',null,e('div',{style:{fontSize:13,fontWeight:500}},l),e('div',{style:{fontSize:12,color:C.fog,marginTop:2}},d)),e(Tog,{k})))),
+        sec==='api'&&e(Box,{style:{padding:'20px'}},e('div',{style:{fontSize:13,fontWeight:500,marginBottom:16,paddingBottom:12,borderBottom:`0.5px solid ${C.mist}`}},'API access'),e('div',{style:{backgroundColor:C.paper,borderRadius:8,padding:'14px 16px',marginBottom:14}},e('div',{style:{fontSize:11,color:C.fog,marginBottom:8}},'Production API key'),e('div',{style:{display:'flex',alignItems:'center',gap:8}},e('code',{style:{flex:1,fontSize:12,...mono,color:C.slate}},showKey?'sk-ss-prod-9f8a2d4e1b7c3f6a9e8d2b5c4f7a1e':'sk-ss-prod-•••••••••••••••••••••••••••••'),e('button',{onClick:()=>setShowKey(!showKey),style:{fontSize:12,padding:'5px 10px',border:`0.5px solid ${C.mist}`,borderRadius:6,backgroundColor:'transparent',cursor:'pointer'}},showKey?'Hide':'Show'),e('button',{style:{fontSize:12,padding:'5px 10px',backgroundColor:C.grove,color:C.white,border:'none',borderRadius:6,cursor:'pointer'}},'Copy'))),e('div',{style:{fontSize:12,color:C.fog,lineHeight:1.7,marginBottom:14}},'Include in all requests: ',e('code',{style:{...mono,backgroundColor:C.paper,padding:'1px 6px',borderRadius:4,fontSize:12}},'Authorization: Bearer sk-ss-prod-...')),e('div',{style:{display:'flex',gap:8}},e('button',{style:{padding:'8px 16px',border:`0.5px solid ${C.canopy}`,borderRadius:7,backgroundColor:'transparent',color:C.canopy,fontSize:12,cursor:'pointer'}},'View API docs →'),e('button',{style:{padding:'8px 16px',border:`0.5px solid ${C.danger}`,borderRadius:7,backgroundColor:'transparent',color:C.danger,fontSize:12,cursor:'pointer'}},'Regenerate key'))),
+        sec==='billing'&&e(Box,{style:{padding:'20px'}},e('div',{style:{fontSize:13,fontWeight:500,marginBottom:16,paddingBottom:12,borderBottom:`0.5px solid ${C.mist}`}},'Subscription & usage'),e('div',{style:{backgroundColor:C.successBg,borderRadius:8,padding:'14px 16px',marginBottom:16,display:'flex',justifyContent:'space-between',alignItems:'center'}},e('div',null,e('div',{style:{fontSize:14,fontWeight:500,color:C.success}},'Professional plan'),e('div',{style:{fontSize:12,color:C.slate,marginTop:2}},'Next billing: 15 Jan 2027 · $299.00')),e('span',{style:{fontSize:12,padding:'3px 12px',borderRadius:12,backgroundColor:C.grove,color:C.white,fontWeight:500}},'Active')),[['Parcel checks this month','847 / unlimited'],['Carbon projects monitored','6 / 20'],['API calls (30 days)','12,441 / 50,000'],['Team seats used','2 / 5'],['Storage used','1.4 GB / 10 GB']].map(([l,v])=>e('div',{key:l,style:{display:'flex',justifyContent:'space-between',padding:'9px 0',borderBottom:`0.5px solid ${C.mist}`,fontSize:13}},e('span',{style:{color:C.fog}},l),e('span',{style:{fontWeight:500,...mono}},v))),e('button',{style:{marginTop:16,padding:'9px 20px',backgroundColor:C.amber,color:C.ink,border:'none',borderRadius:7,fontSize:13,fontWeight:500,cursor:'pointer'}},'Upgrade to Enterprise →'))
+      )
+    )
+  );
+}
+
+function TabAssistant(){
+  const [msgs,setMsgs]=useState([{role:'ai',text:"Hello — I'm your Seven Stand forest intelligence assistant. Ask me anything about EUDR compliance, carbon credits, deforestation monitoring, or satellite verification."}]);
+  const [input,setInput]=useState('');
+  const [thinking,setThinking]=useState(false);
+  const bottomRef=useRef(null);
+  useEffect(()=>{bottomRef.current?.scrollIntoView({behavior:'smooth'});},[msgs]);
+  const send=()=>{
+    if(!input.trim()||thinking)return;
+    const q=input.trim();setInput('');
+    setMsgs(p=>[...p,{role:'user',text:q}]);
+    setThinking(true);
+    setTimeout(()=>{
+      const lq=q.toLowerCase();
+      const match=chatKB.find(kb=>kb.k.some(k=>lq.includes(k)));
+      const reply=match?match.r:"I don't have a specific answer in my knowledge base for that. Seven Stand's satellite monitoring covers all EUDR-regulated commodities globally. For detailed technical questions, email support@sevenstand.io or check the API documentation.";
+      setMsgs(p=>[...p,{role:'ai',text:reply}]);setThinking(false);
+    },800+Math.random()*600);
+  };
+  return e('div',{className:'ss-fade',style:{display:'flex',flexDirection:'column',height:'calc(100vh - 130px)'}},
+    e('div',{style:{marginBottom:16}},e('h1',{style:{fontSize:20,fontWeight:600,margin:0}},'Forest AI assistant'),e('p',{style:{fontSize:13,color:C.fog,marginTop:3}},'Ask anything about EUDR, carbon credits, or satellite forest monitoring')),
+    e('div',{style:{flex:1,overflow:'auto',display:'flex',flexDirection:'column',gap:10,paddingRight:2}},
+      msgs.map((m,i)=>e('div',{key:i,style:{display:'flex',gap:10,alignItems:'flex-start',flexDirection:m.role==='user'?'row-reverse':'row'}},
+        e('div',{style:{width:28,height:28,borderRadius:'50%',backgroundColor:m.role==='ai'?C.canopy:C.amber,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,color:C.white,fontWeight:500,flexShrink:0}},m.role==='ai'?'AI':'AP'),
+        e('div',{style:{maxWidth:'80%',padding:'11px 14px',borderRadius:m.role==='user'?'12px 12px 4px 12px':'12px 12px 12px 4px',backgroundColor:m.role==='user'?C.grove:C.white,border:m.role==='user'?'none':`0.5px solid ${C.mist}`,fontSize:13,color:m.role==='user'?C.white:C.slate,lineHeight:1.65}},m.text)
+      )),
+      thinking&&e('div',{style:{display:'flex',gap:10,alignItems:'center'}},e('div',{style:{width:28,height:28,borderRadius:'50%',backgroundColor:C.canopy,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,color:C.white,fontWeight:500}},'AI'),e('div',{style:{padding:'11px 16px',backgroundColor:C.white,border:`0.5px solid ${C.mist}`,borderRadius:'12px 12px 12px 4px',display:'flex',gap:5,alignItems:'center'}},[0,1,2].map(i=>e('div',{key:i,style:{width:6,height:6,borderRadius:'50%',backgroundColor:C.fog,animation:`ss-pulse .8s ease ${i*.2}s infinite`}})))),
+      e('div',{ref:bottomRef})
+    ),
+    e('div',{style:{display:'flex',gap:8,marginTop:12}},
+      e('input',{value:input,onChange:ev=>setInput(ev.target.value),onKeyDown:ev=>ev.key==='Enter'&&send(),placeholder:'Ask about EUDR, carbon credits, satellite data…',style:{flex:1,padding:'11px 14px',border:`0.5px solid ${C.mist}`,borderRadius:9,fontSize:13,backgroundColor:C.white,outline:'none'}}),
+      e('button',{onClick:send,disabled:!input.trim()||thinking,style:{padding:'11px 20px',backgroundColor:input.trim()&&!thinking?C.grove:C.mist,color:input.trim()&&!thinking?C.white:C.fog,border:'none',borderRadius:9,fontSize:13,fontWeight:500,cursor:input.trim()&&!thinking?'pointer':'not-allowed',transition:'all .15s'}},'Send')
+    )
+  );
+}
+
+function Dashboard({onBack,tab,setTab}){
+  const [notifOpen,setNotifOpen]=useState(false);
+  const [userOpen,setUserOpen]=useState(false);
+  const tabs=[{id:'overview',l:'Overview'},{id:'eudr',l:'EUDR Checker'},{id:'carbon',l:'Carbon'},{id:'alerts',l:'Alerts'},{id:'map',l:'Map'},{id:'suppliers',l:'Suppliers'},{id:'reports',l:'Reports'},{id:'certificate',l:'Certificates'},{id:'assistant',l:'AI Assistant'},{id:'settings',l:'Settings'}];
+  const tabMap={overview:TabOverview,eudr:TabEUDR,carbon:TabCarbon,alerts:TabAlerts,map:TabMap,suppliers:TabSuppliers,reports:TabReports,certificate:TabCertificate,assistant:TabAssistant,settings:TabSettings};
+  const Tab=tabMap[tab]||TabOverview;
+  return e('div',{style:{display:'flex',height:'100vh',color:C.slate,backgroundColor:C.paper},onClick:()=>{setNotifOpen(false);setUserOpen(false);}},
+    e('aside',{style:{width:190,backgroundColor:C.ink,display:'flex',flexDirection:'column',flexShrink:0,overflowY:'auto'}},
+      e('div',{style:{padding:'18px 16px 14px',borderBottom:'1px solid rgba(255,255,255,.07)'}},e('div',{style:{...serif,color:C.white,fontSize:18,letterSpacing:'-.5px'}},'Seven Stand'),e('div',{style:{color:C.fog,fontSize:9,marginTop:2,letterSpacing:'.1em',textTransform:'uppercase'}},'Forest Intelligence')),
+      e('nav',{style:{flex:1,padding:'8px 6px'}},tabs.map(t=>e('button',{key:t.id,onClick:()=>setTab(t.id),style:{display:'block',width:'100%',textAlign:'left',padding:'7px 10px',marginBottom:2,borderRadius:6,border:'none',cursor:'pointer',backgroundColor:tab===t.id?C.canopy:'transparent',color:tab===t.id?C.white:C.fog,fontSize:12,fontFamily:'inherit',transition:'all .15s'}},t.l))),
+      e('div',{style:{padding:'12px 14px',borderTop:'1px solid rgba(255,255,255,.07)'}},e('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:8}},e('div',{style:{width:26,height:26,borderRadius:'50%',backgroundColor:C.canopy,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,color:C.white,fontWeight:500}},'AP'),e('div',null,e('div',{style:{fontSize:11,color:C.white,fontWeight:500}},'Alex Patel'),e('div',{style:{fontSize:9,color:C.fog}},'Pro plan'))),e('button',{onClick:onBack,style:{fontSize:11,color:C.fog,background:'none',border:'none',cursor:'pointer',fontFamily:'inherit',padding:0}},'← Back to site'))
+    ),
+    e('div',{style:{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}},
+      e('div',{style:{backgroundColor:C.white,borderBottom:`0.5px solid ${C.mist}`,padding:'0 22px',height:50,display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}},
+        e('div',{style:{fontSize:13,fontWeight:500}},tabs.find(t=>t.id===tab)?.l),
+        e('div',{style:{display:'flex',alignItems:'center',gap:10}},
+          e('div',{style:{position:'relative',display:'flex',alignItems:'center'}},e('span',{style:{position:'absolute',left:9,fontSize:11,color:C.fog,pointerEvents:'none'}},'🔍'),e('input',{placeholder:'Search parcels, suppliers…',style:{paddingLeft:26,paddingRight:10,paddingTop:5,paddingBottom:5,border:`0.5px solid ${C.mist}`,borderRadius:18,fontSize:11,backgroundColor:C.paper,outline:'none',width:180}})),
+          e('div',{style:{position:'relative'}},
+            e('button',{onClick:ev=>{ev.stopPropagation();setNotifOpen(!notifOpen);setUserOpen(false);},style:{background:'none',border:'none',cursor:'pointer',fontSize:15,padding:'3px 5px',position:'relative'}},'🔔',e('span',{style:{position:'absolute',top:2,right:2,width:7,height:7,borderRadius:'50%',backgroundColor:C.danger,border:`2px solid ${C.white}`}})),
+            notifOpen&&e('div',{onClick:ev=>ev.stopPropagation(),className:'ss-slide',style:{position:'absolute',top:36,right:0,width:278,backgroundColor:C.white,border:`0.5px solid ${C.mist}`,borderRadius:10,boxShadow:'0 8px 28px rgba(0,0,0,.12)',zIndex:200}},
+              e('div',{style:{padding:'11px 14px',borderBottom:`0.5px solid ${C.mist}`,fontSize:13,fontWeight:500}},'Notifications'),
+              alertsList.slice(0,3).map(a=>e('div',{key:a.id,style:{padding:'9px 14px',borderBottom:`0.5px solid ${C.mist}`,cursor:'pointer'}},e('div',{style:{fontSize:12,fontWeight:500,color:a.type==='critical'?C.danger:C.slate}},a.msg),e('div',{style:{fontSize:10,color:C.fog,marginTop:2}},a.time))),
+              e('div',{style:{padding:'8px 14px',textAlign:'center',fontSize:12,color:C.canopy,cursor:'pointer'},onClick:()=>{setTab('alerts');setNotifOpen(false);}},'View all alerts →')
+            )
+          ),
+          e('div',{style:{position:'relative'}},
+            e('button',{onClick:ev=>{ev.stopPropagation();setUserOpen(!userOpen);setNotifOpen(false);},style:{width:28,height:28,borderRadius:'50%',backgroundColor:C.canopy,border:'none',cursor:'pointer',color:C.white,fontSize:11,fontWeight:500}},'AP'),
+            userOpen&&e('div',{onClick:ev=>ev.stopPropagation(),className:'ss-slide',style:{position:'absolute',top:36,right:0,width:152,backgroundColor:C.white,border:`0.5px solid ${C.mist}`,borderRadius:8,boxShadow:'0 8px 24px rgba(0,0,0,.12)',zIndex:200,padding:'5px'}},
+              ['My profile','Billing','API docs','Sign out'].map((l,i)=>e('div',{key:l,onClick:()=>{if(i<2)setTab('settings');setUserOpen(false);},style:{padding:'7px 10px',fontSize:12,cursor:'pointer',borderRadius:5,color:i===3?C.danger:C.slate}},l))
+            )
+          )
+        )
+      ),
+      e('div',{style:{flex:1,overflow:'auto',padding:'20px 24px'}},e('div',{style:{maxWidth:920,margin:'0 auto'}},e(Tab)))
+    )
+  );
+}
+
+function Landing({onLaunch}){
+  const [scrolled,setScrolled]=useState(false);
+  const [email,setEmail]=useState('');
+  const [openFaq,setOpenFaq]=useState(null);
+  useEffect(()=>{const fn=()=>setScrolled(window.scrollY>50);window.addEventListener('scroll',fn);return()=>window.removeEventListener('scroll',fn);},[]);
+  return e('div',null,
+    e('nav',{style:{position:'fixed',top:0,left:0,right:0,zIndex:100,padding:'0 48px',height:62,display:'flex',alignItems:'center',justifyContent:'space-between',backgroundColor:scrolled?'rgba(255,255,255,.96)':'transparent',borderBottom:scrolled?`0.5px solid ${C.mist}`:'none',backdropFilter:scrolled?'blur(12px)':'none',transition:'all .25s'}},
+      e('div',{style:{...serif,fontSize:20,color:scrolled?C.ink:C.white,letterSpacing:'-.5px'}},'Seven Stand'),
+      e('div',{style:{display:'flex',alignItems:'center',gap:24}},['Product','How it works','Pricing','FAQ'].map(n=>e('a',{key:n,href:'#'+n.toLowerCase().replace(/ /g,'-'),style:{fontSize:13,color:scrolled?C.slate:'rgba(255,255,255,.75)'}},n)),e('button',{onClick:onLaunch,style:{padding:'8px 20px',backgroundColor:C.amber,color:C.ink,border:'none',borderRadius:8,fontSize:13,fontWeight:500,cursor:'pointer'}},'Open dashboard'))
+    ),
+    e('section',{style:{backgroundColor:C.ink,padding:'120px 48px 80px'}},
+      e('div',{style:{maxWidth:1100,margin:'0 auto',display:'grid',gridTemplateColumns:'1fr 1fr',gap:60,alignItems:'center'}},
+        e('div',null,e(Pill,{text:'EUDR · Carbon · Verification'}),e('h1',{style:{...serif,fontSize:52,fontWeight:400,color:C.white,lineHeight:1.07,margin:'18px 0 22px',letterSpacing:'-1.5px'}},'The forest',e('br'),e('em',{style:{color:C.moss}},"doesn't lie."),e('br'),'Now prove it.'),e('p',{style:{fontSize:15,color:'rgba(255,255,255,.58)',lineHeight:1.8,marginBottom:32,maxWidth:420}},'Seven Stand gives corporations and regulators continuous satellite proof that forests exist, persist, and deliver on their carbon and compliance promises.'),e('div',{style:{display:'flex',gap:12,marginBottom:40}},e('button',{onClick:onLaunch,style:{padding:'12px 26px',backgroundColor:C.amber,color:C.ink,border:'none',borderRadius:9,fontSize:14,fontWeight:500,cursor:'pointer'}},'Try the dashboard'),e('a',{href:'#how-it-works',style:{padding:'12px 26px',border:'1px solid rgba(255,255,255,.18)',borderRadius:9,fontSize:14,color:'rgba(255,255,255,.75)',display:'inline-block'}},'How it works')),e('div',{style:{display:'flex',gap:36}},[['75%','of credits unverifiable'],['Dec 2026','EUDR deadline'],['$50B','carbon market']].map(([v,l])=>e('div',{key:v},e('div',{style:{...serif,fontSize:22,color:C.amber}},v),e('div',{style:{fontSize:11,color:'rgba(255,255,255,.38)',marginTop:3,lineHeight:1.4,maxWidth:80}},l))))),
+        e('div',null,e(SatGrid),e('div',{style:{display:'flex',gap:16,marginTop:10,justifyContent:'flex-end'}},[[C.canopy,'Forest'],[C.amber,'Alert'],['#4A2008','Cleared']].map(([cl,lb])=>e('div',{key:lb,style:{display:'flex',alignItems:'center',gap:4}},e('div',{style:{width:8,height:8,borderRadius:1,backgroundColor:cl,opacity:.85}}),e('span',{style:{fontSize:10,color:'rgba(255,255,255,.38)'}},lb)))))
+      )
+    ),
+    e('section',{style:{backgroundColor:C.white,padding:'22px 48px',borderBottom:`0.5px solid ${C.mist}`}},
+      e('div',{style:{maxWidth:1100,margin:'0 auto',textAlign:'center'}},e('div',{style:{fontSize:11,color:C.fog,letterSpacing:'.1em',textTransform:'uppercase',marginBottom:14}},'Trusted by leading ESG teams and forestry funds'),e('div',{style:{display:'flex',justifyContent:'center',gap:12,flexWrap:'wrap'}},['Timber Import Group','Climate Capital Partners','Pacific Forest Trust','Nordic ESG Fund','Amazonia Holdings','Verde Compliance Ltd'].map(co=>e('div',{key:co,style:{fontSize:12,fontWeight:500,color:C.fog,padding:'5px 14px',border:`0.5px solid ${C.mist}`,borderRadius:20}},co))))
+    ),
+    e('section',{style:{backgroundColor:C.grove,padding:'24px 48px'}},
+      e('div',{style:{maxWidth:1100,margin:'0 auto',display:'flex',justifyContent:'space-around',flexWrap:'wrap',gap:16}},[['47M tonnes',"of problematic credits retired in 2024"],['31 charged',"in Brazil's Operation Greenwashing, Oct 2025"],['4% turnover','maximum EUDR fine for non-compliant EU importers'],['5 years','how far back auditors can inspect your supply chain']].map(([v,l])=>e('div',{key:v,style:{textAlign:'center'}},e('div',{style:{...serif,fontSize:18,color:C.sage}},v),e('div',{style:{fontSize:11,color:'rgba(255,255,255,.44)',marginTop:3,maxWidth:150,lineHeight:1.5}},l))))
+    ),
+    e('section',{id:'product',style:{padding:'80px 48px',backgroundColor:C.cloud}},
+      e('div',{style:{maxWidth:1100,margin:'0 auto'}},e(SH,{label:'What Seven Stand does',title:'One platform. Three layers of proof.',center:true}),
+        e('div',{style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16}},[{icon:'🛰',t:'Satellite forest AI',d:'Weekly Sentinel-2 and Planet Labs imagery processed by our deforestation model. Detects clearing down to 0.5 hectares with alerts dispatched within 48 hours.'},{icon:'📡',t:'Real-time IoT monitoring',d:"Acoustic sensors deployed on-site detect chainsaw activity in real time. Ground truth that satellites can't fake, logged to an immutable ledger."},{icon:'📋',t:'EUDR compliance automation',d:'Paste GPS coordinates and receive a deforestation risk score plus a pre-filled EU TRACES due diligence statement in under three minutes.'}].map(f=>e(Box,{key:f.t,style:{padding:'28px 26px'}},e('div',{style:{fontSize:30,marginBottom:14}},f.icon),e('div',{style:{...serif,fontSize:17,color:C.ink,marginBottom:10}},f.t),e('div',{style:{fontSize:13,color:C.fog,lineHeight:1.8}},f.d))))
+      )
+    ),
+    e('section',{id:'how-it-works',style:{padding:'80px 48px',backgroundColor:C.white}},
+      e('div',{style:{maxWidth:900,margin:'0 auto',textAlign:'center'}},e(SH,{label:'How it works',title:'From coordinates to compliance',center:true}),
+        e('div',{style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:0,position:'relative',marginTop:44}},
+          e('div',{style:{position:'absolute',top:23,left:'18%',right:'18%',height:'0.5px',backgroundColor:C.mist}}),
+          [{n:'1',t:'Submit parcel data',d:'Paste GPS coordinates or upload a GeoJSON file. Works for any forest parcel, anywhere in the world.'},{n:'2',t:'AI analyses 5 years of imagery',d:'Our model queries the satellite stack, runs the deforestation algorithm, and scores against the Dec 2020 baseline.'},{n:'3',t:'Receive verified proof',d:'A tamper-proof certificate, a EUDR-ready due diligence statement, and ongoing monitoring.'}].map(s=>e('div',{key:s.n,style:{padding:'0 28px',position:'relative',zIndex:1}},e('div',{style:{width:46,height:46,borderRadius:'50%',backgroundColor:C.grove,color:C.white,...serif,fontSize:20,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 18px'}},s.n),e('div',{style:{fontSize:15,fontWeight:500,marginBottom:10}},s.t),e('div',{style:{fontSize:13,color:C.fog,lineHeight:1.75}},s.d)))
+        )
+      )
+    ),
+    e('section',{style:{padding:'80px 48px',backgroundColor:C.cloud}},
+      e('div',{style:{maxWidth:1100,margin:'0 auto'}},e(SH,{label:'What clients say',title:'Proof matters to them too.',center:true}),
+        e('div',{style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16}},testimonials.map((t,i)=>e(Box,{key:i,style:{padding:'26px 24px'}},e('div',{style:{fontSize:13,color:C.slate,lineHeight:1.85,marginBottom:20,fontStyle:'italic'}},t.q),e('div',{style:{borderTop:`0.5px solid ${C.mist}`,paddingTop:14}},e('div',{style:{fontSize:13,fontWeight:500}},t.name),e('div',{style:{fontSize:11,color:C.fog,marginTop:2}},t.role),e('div',{style:{fontSize:11,color:C.fog}},t.co)))))
+      )
+    ),
+    e('section',{id:'pricing',style:{padding:'80px 48px',backgroundColor:C.white}},
+      e('div',{style:{maxWidth:1060,margin:'0 auto'}},e(SH,{label:'Pricing',title:'Simple, honest pricing',center:true}),
+        e('div',{style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16}},[{tier:'Starter',price:'Free',desc:'For consultants running occasional compliance checks.',features:['10 parcel checks / month','EUDR risk score + verdict','PDF report download','Email support'],cta:'Get started',dark:false},{tier:'Professional',price:'$299 / mo',desc:'For EU importers and forestry SMEs needing continuous monitoring.',features:['Unlimited parcel checks','Carbon portfolio dashboard','Continuous satellite monitoring','Priority support + API access'],cta:'Start free trial',dark:true},{tier:'Enterprise',price:'Custom',desc:'For large corporations, carbon registries, and governments.',features:['MRV methodology package','IoT sensor deployment','White-label reports','Dedicated account manager + SLA'],cta:'Talk to us',dark:false}].map(p=>e('div',{key:p.tier,style:{backgroundColor:p.dark?C.grove:C.white,border:p.dark?'none':`0.5px solid ${C.mist}`,borderRadius:14,padding:'28px 26px'}},e('div',{style:{fontSize:12,color:p.dark?C.sage:C.fog,marginBottom:6}},p.tier),e('div',{style:{...serif,fontSize:30,color:p.dark?C.white:C.ink,marginBottom:6}},p.price),e('div',{style:{fontSize:13,color:p.dark?'rgba(255,255,255,.55)':C.fog,marginBottom:20,lineHeight:1.65}},p.desc),e('div',{style:{borderTop:`0.5px solid ${p.dark?'rgba(255,255,255,.1)':C.mist}`,paddingTop:18,marginBottom:20}},p.features.map(f=>e('div',{key:f,style:{fontSize:13,color:p.dark?'rgba(255,255,255,.78)':C.slate,padding:'5px 0',display:'flex',gap:9}},e('span',{style:{color:p.dark?C.sage:C.moss}},'✓'),f))),e('button',{onClick:onLaunch,style:{width:'100%',padding:'11px',backgroundColor:p.dark?C.amber:'transparent',color:p.dark?C.ink:C.grove,border:p.dark?'none':`1px solid ${C.grove}`,borderRadius:9,fontSize:13,fontWeight:500,cursor:'pointer'}},p.cta))))
+      )
+    ),
+    e('section',{id:'faq',style:{padding:'80px 48px',backgroundColor:C.cloud}},
+      e('div',{style:{maxWidth:740,margin:'0 auto'}},e(SH,{label:'FAQ',title:'Common questions',center:true}),
+        faqs.map((f,i)=>e('div',{key:i,style:{backgroundColor:C.white,border:`0.5px solid ${C.mist}`,borderRadius:10,marginBottom:10,overflow:'hidden'}},
+          e('div',{onClick:()=>setOpenFaq(openFaq===i?null:i),style:{padding:'15px 20px',fontSize:14,fontWeight:500,cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',gap:14}},e('span',null,f.q),e('span',{style:{color:C.fog,fontSize:20,display:'inline-block',transform:openFaq===i?'rotate(45deg)':'none',transition:'transform .2s',flexShrink:0}},'+')),
+          openFaq===i&&e('div',{className:'ss-slide',style:{padding:'0 20px 16px',fontSize:13,color:C.fog,lineHeight:1.8}},f.a)
+        ))
+      )
+    ),
+    e('section',{style:{padding:'80px 48px',backgroundColor:C.ink,textAlign:'center'}},
+      e('div',{style:{maxWidth:560,margin:'0 auto'}},e('h2',{style:{...serif,fontSize:40,fontWeight:400,color:C.white,margin:'0 0 16px',letterSpacing:'-.5px'}},'Your first check takes three minutes.'),e('p',{style:{fontSize:14,color:'rgba(255,255,255,.48)',marginBottom:32,lineHeight:1.8}},'Join ESG teams, EU importers, and forestry funds using Seven Stand to prove what their forests are actually doing.'),e('div',{style:{display:'flex',gap:10,justifyContent:'center',maxWidth:400,margin:'0 auto'}},e('input',{value:email,onChange:ev=>setEmail(ev.target.value),placeholder:'your@company.com',type:'email',style:{flex:1,padding:'11px 16px',borderRadius:9,border:'none',fontSize:13,color:C.slate,outline:'none'}}),e('button',{onClick:onLaunch,style:{padding:'11px 22px',backgroundColor:C.amber,color:C.ink,border:'none',borderRadius:9,fontSize:13,fontWeight:500,cursor:'pointer',flexShrink:0}},'Request demo')))
+    ),
+    e('footer',{style:{backgroundColor:'#060F08',padding:'32px 48px',display:'flex',justifyContent:'space-between',alignItems:'center'}},
+      e('div',null,e('div',{style:{...serif,fontSize:17,color:C.white}},'Seven Stand'),e('div',{style:{fontSize:11,color:C.fog,marginTop:3}},'Forest intelligence for the compliance era.')),
+      e('div',{style:{display:'flex',gap:20}},['Privacy','Terms','API Docs','Contact','Blog'].map(l=>e('a',{key:l,href:'#',style:{fontSize:12,color:C.fog}},l))),
+      e('div',{style:{fontSize:12,color:C.fog}},'© 2026 Seven Stand')
+    )
+  );
+}
+
+function App(){
+  const [page,setPage]=useState('landing');
+  const [tab,setTab]=useState('overview');
+  if(page==='app')return e(Dashboard,{onBack:()=>setPage('landing'),tab,setTab});
+  return e(Landing,{onLaunch:()=>{setPage('app');setTab('overview');}});
+}
+ReactDOM.render(e(App),document.getElementById('root'));
+})();
+</script>
+</body>
+</html>
